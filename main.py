@@ -7,7 +7,7 @@ import time
 SCREEN_X = 1000
 SCREEN_Y = 650
 SCREEN_TITLE = "Arcade"
-CHARACTER_SCALING = 0.25
+CHARACTER_SCALING = 0.5
 TILE_SCALING = 0.5
 PLAYER_MOVEMENT_SPEED = 5
 FORWARD_VELOCITY = [arcade.key.UP, arcade.key.W]
@@ -89,19 +89,18 @@ class Starship:
         self.game = game
         player_sprite_source = ":resources:images/space_shooter/playerShip1_blue.png"
         self.sprite = arcade.Sprite(player_sprite_source, CHARACTER_SCALING)
-        self.speed_dict = {"Forward": 3.0, "Backwards": -3.0, "Left": 5, "Right": -5}
+        self.speed_dict = {"Forward": 1.5, "Backwards": -0.5, "Left": 5, "Right": -5, "Slow": -1}
         self.scanner = Sensors(self, scan_range=300, color=(0, 180, 0))
         self.turn_rate = 0
-        self.acceleration = 0
-        self.max_acceleration = 15
+        self.thrust = 0
         self.speed = 0
-        self.max_speed = 100
+        self.max_speed = 15
 
     def on_key_press(self, key: int, modifiers: int):
         if key in FORWARD_VELOCITY:
-            self.speed += self.speed_dict['Forward']
+            self.thrust = self.speed_dict['Forward']
         elif key in BACKWARD_VELOCITY:
-            self.speed += self.speed_dict['Backwards']
+            self.thrust = self.speed_dict['Backwards']
         elif key in RIGHT_VELOCITY:
             self.turn_rate += self.speed_dict['Right']
         elif key in LEFT_VELOCITY:
@@ -109,9 +108,9 @@ class Starship:
 
     def on_key_release(self, key: int, modifiers: int):
         if key in FORWARD_VELOCITY:
-            self.speed = 0
+            self.thrust = 0
         elif key in BACKWARD_VELOCITY:
-            self.speed = 0
+            self.thrust = 0
         elif key in RIGHT_VELOCITY:
             self.turn_rate -= self.speed_dict['Right']
         elif key in LEFT_VELOCITY:
@@ -119,15 +118,23 @@ class Starship:
 
     def on_update(self):
         self.sprite.angle += self.turn_rate
-        self.fly_foward()
+        self.fly_forward()
 
     def on_draw(self):
         self.scanner.update_line_list()
 
-    def fly_foward(self):
-        forward = (self.sprite.angle + 90) * math.pi / 180
-        self.sprite.change_x = self.speed * math.cos(forward)
-        self.sprite.change_y = self.speed * math.sin(forward)
+    def fly_forward(self):
+        if self.thrust > 0:
+            self.speed += self.thrust
+        elif self.speed <= 0:
+            self.speed = 0
+        elif self.thrust <= 0:
+            self.speed -= 0.25
+        self.speed = min(self.speed, self.max_speed)
+        # This mostly works, don't touch it.
+        forward_radians = (self.sprite.angle + 90) * math.pi / 180
+        self.sprite.change_x = self.speed * math.cos(forward_radians)
+        self.sprite.change_y = self.speed * math.sin(forward_radians)
 
 
 class Sensors:
