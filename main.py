@@ -47,12 +47,12 @@ class Game(arcade.Window):
     def on_draw(self):
         arcade.start_render()
         self.camera.use()
-        self.player.scanner.update_line_list()
         for line in self.player.scanner.line_list:
             line.draw()
         self.scene.draw()
         self.gui_camera.use()
         arcade.draw_text(f'FPS: {self.frame_rate}', 10, 10, arcade.csscolor.WHITE, 18)
+        self.player.on_draw()
 
     def on_key_press(self, key: int, modifiers: int):
         self.player.on_key_press(key, modifiers)
@@ -99,9 +99,9 @@ class Starship:
 
     def on_key_press(self, key: int, modifiers: int):
         if key in FORWARD_VELOCITY:
-            self.sprite.change_y = self.speed_dict['Forward']
+            self.speed += self.speed_dict['Forward']
         elif key in BACKWARD_VELOCITY:
-            self.sprite.change_y = self.speed_dict['Backwards']
+            self.speed += self.speed_dict['Backwards']
         elif key in RIGHT_VELOCITY:
             self.turn_rate += self.speed_dict['Right']
         elif key in LEFT_VELOCITY:
@@ -109,9 +109,9 @@ class Starship:
 
     def on_key_release(self, key: int, modifiers: int):
         if key in FORWARD_VELOCITY:
-            self.sprite.forward = 0
+            self.speed = 0
         elif key in BACKWARD_VELOCITY:
-            self.sprite.forward = 0
+            self.speed = 0
         elif key in RIGHT_VELOCITY:
             self.turn_rate -= self.speed_dict['Right']
         elif key in LEFT_VELOCITY:
@@ -119,6 +119,15 @@ class Starship:
 
     def on_update(self):
         self.sprite.angle += self.turn_rate
+        self.fly_foward()
+
+    def on_draw(self):
+        self.scanner.update_line_list()
+
+    def fly_foward(self):
+        forward = (self.sprite.angle + 90) * math.pi / 180
+        self.sprite.change_x = self.speed * math.cos(forward)
+        self.sprite.change_y = self.speed * math.sin(forward)
 
 
 class Sensors:
