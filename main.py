@@ -47,12 +47,9 @@ class Game(arcade.Window):
     def on_draw(self):
         arcade.start_render()
         self.camera.use()
-        self.player.scanner.update_line()
-        try:
-            # self.player.scanner.old_line.draw()
-            self.player.scanner.new_line.draw()
-        except AttributeError:
-            print('None type sensors')
+        self.player.scanner.update_line_list()
+        for line in self.player.scanner.line_list:
+            line.draw()
         self.scene.draw()
         self.gui_camera.use()
         arcade.draw_text(f'FPS: {self.frame_rate}', 10, 10, arcade.csscolor.WHITE, 18)
@@ -87,12 +84,18 @@ class Game(arcade.Window):
 
 
 class Starship:
+
     def __init__(self, game: Game):
         self.game = game
         player_sprite_source = ":resources:images/space_shooter/playerShip1_blue.png"
         self.sprite = arcade.Sprite(player_sprite_source, CHARACTER_SCALING)
-        self.speed_dict = {"Forward": 5, "Backwards": -5, "Left": -5, "Right": 5}
-        self.scanner = Sensors(self, scan_range=300)
+        self.speed_dict = {"Forward": 3.0, "Backwards": -3.0, "Left": 5, "Right": -5}
+        self.scanner = Sensors(self, scan_range=300, color=(0, 180, 0))
+        self.turn_rate = 0
+        self.acceleration = 0
+        self.max_acceleration = 15
+        self.speed = 0
+        self.max_speed = 100
 
     def on_key_press(self, key: int, modifiers: int):
         if key in FORWARD_VELOCITY:
@@ -100,51 +103,60 @@ class Starship:
         elif key in BACKWARD_VELOCITY:
             self.sprite.change_y = self.speed_dict['Backwards']
         elif key in RIGHT_VELOCITY:
-            self.sprite.change_x = self.speed_dict['Right']
+            self.turn_rate += self.speed_dict['Right']
         elif key in LEFT_VELOCITY:
-            self.sprite.change_x = self.speed_dict['Left']
+            self.turn_rate += self.speed_dict['Left']
 
     def on_key_release(self, key: int, modifiers: int):
         if key in FORWARD_VELOCITY:
-            self.sprite.change_y = 0
+            self.sprite.forward = 0
         elif key in BACKWARD_VELOCITY:
-            self.sprite.change_y = 0
+            self.sprite.forward = 0
         elif key in RIGHT_VELOCITY:
-            self.sprite.change_x = 0
+            self.turn_rate -= self.speed_dict['Right']
         elif key in LEFT_VELOCITY:
-            self.sprite.change_x = 0
+            self.turn_rate -= self.speed_dict['Left']
 
     def on_update(self):
-        pass
+        self.sprite.angle += self.turn_rate
 
 
 class Sensors:
-    def __init__(self, owner: Starship, scan_range: int, color=arcade.csscolor.GREEN, line_width: float = 2):
+    START_ANGLE = 90
+    MAX_ANGLES = 5
+
+    def __init__(self, owner: Starship, scan_range: int, color: tuple, line_width: float = 2):
         self.owner = owner
         self.scan_range = scan_range
         self.line_width = line_width
-        self.angle = 90
         self.color = color
-        self.old_line = None
-        self.new_line = None
+        self.angle_list = [self.START_ANGLE]
+        self.line_list = []
 
-    def update_line(self):
-        radians = self.angle * math.pi / 180
-        self.old_line = self.new_line
-        start_x = self.owner.sprite.center_x
-        start_y = self.owner.sprite.center_y
-        end_x = (self.scan_range * math.cos(radians)) + start_x
-        end_y = (self.scan_range * math.sin(radians)) + start_y
-        # end_x = start_x + 300
-        # end_y = start_y + 300
-        self.angle -= 1
-        if self.angle == 360:
-            self.angle = 0
-        # print(f'{start_x}, {start_y} // {end_x}, {end_y} -- {self.angle}')
-        # self.new_line = arcade.create_ellipse_filled(center_x=end_x, center_y=end_y,
-        #                                              width=100, height=100, color=self.color)
-        self.new_line = arcade.create_line(start_x=start_x, start_y=start_y, end_x=end_x,
-                                           end_y=end_y, color=self.color, line_width=self.line_width)
+    def update_line_list(self):
+        def get_color(base_color: tuple, index: int) -> tuple:
+            modifier = index / self.MAX_ANGLES
+            return int(base_color[0] * modifier), int(base_color[1] * modifier), int(base_color[2] * modifier)
+
+        for index, angle in enumerate(self.angle_list, 0):
+            radians = angle * math.pi / 180
+            start_x = self.owner.sprite.center_x
+            start_y = self.owner.sprite.center_y
+            end_x = (self.scan_range * math.cos(radians)) + start_x
+            end_y = (self.scan_range * math.sin(radians)) + start_y
+            color = get_color(self.color, index)
+            newest_line = arcade.create_line(start_x=start_x, start_y=start_y, end_x=end_x, end_y=end_y,
+                                             color=color, line_width=self.line_width)
+            self.line_list.append(newest_line)
+
+        if self.angle_list[-1] >= 360:
+            self.angle_list.append(0)
+        else:
+            self.angle_list.append(self.angle_list[-1] + 1)
+        if len(self.angle_list) > self.MAX_ANGLES:
+            del self.angle_list[0]
+        if len(self.line_list) > len(self.angle_list):
+            del self.line_list[:self.MAX_ANGLES]
 
 
 def main():
