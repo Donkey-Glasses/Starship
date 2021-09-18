@@ -1,6 +1,6 @@
 import arcade
 import math
-import time
+import random
 
 
 # Constants
@@ -29,6 +29,7 @@ class Game(arcade.Window):
         self.frame_rate = 0
         self.camera = arcade.Camera(self.width, self.height)
         self.gui_camera = arcade.Camera(self.width, self.height)
+        self.sector_list = []
 
     def setup(self):
         self.scene.player_list = arcade.SpriteList()
@@ -36,7 +37,7 @@ class Game(arcade.Window):
         self.player.sprite.center_y = SCREEN_Y / 2
         self.scene.add_sprite("Player", self.player.sprite)
         self.physics_engine = arcade.PhysicsEngineSimple(self.player.sprite, self.scene.get_sprite_list("Walls"))
-        # self.camera = arcade.Camera(self.width, self.height)
+        self.sector_list = [Sector(x_mod=1, y_mod=1)]
 
         for x in range(0, 1250, 64):
             wall = arcade.Sprite(":resources:images/space_shooter/meteorGrey_tiny2.png", TILE_SCALING)
@@ -53,6 +54,8 @@ class Game(arcade.Window):
         self.gui_camera.use()
         arcade.draw_text(f'FPS: {self.frame_rate}', 10, 10, arcade.csscolor.WHITE, 18)
         self.player.on_draw()
+        for sector in self.sector_list:
+            sector.on_draw()
 
     def on_key_press(self, key: int, modifiers: int):
         self.player.on_key_press(key, modifiers)
@@ -89,7 +92,7 @@ class Starship:
         self.game = game
         player_sprite_source = ":resources:images/space_shooter/playerShip1_blue.png"
         self.sprite = arcade.Sprite(player_sprite_source, CHARACTER_SCALING)
-        self.speed_dict = {"Forward": 1.5, "Backwards": -0.5, "Left": 5, "Right": -5, "Slow": -1}
+        self.speed_dict = {"Forward": 0.5, "Backwards": -0.5, "Left": 5, "Right": -5, "Slow": -1}
         self.scanner = Sensors(self, scan_range=300, color=(0, 180, 0))
         self.turn_rate = 0
         self.thrust = 0
@@ -124,12 +127,11 @@ class Starship:
         self.scanner.update_line_list()
 
     def fly_forward(self):
-        if self.thrust > 0:
-            self.speed += self.thrust
-        elif self.speed <= 0:
-            self.speed = 0
-        elif self.thrust <= 0:
-            self.speed -= 0.25
+        self.speed += self.thrust
+        if self.speed < 0:
+            self.speed += 0.1
+        elif self.speed > 0:
+            self.speed -= 0.1
         self.speed = min(self.speed, self.max_speed)
         # This mostly works, don't touch it.
         forward_radians = (self.sprite.angle + 90) * math.pi / 180
@@ -173,6 +175,27 @@ class Sensors:
             del self.angle_list[0]
         if len(self.line_list) > len(self.angle_list):
             del self.line_list[:self.MAX_ANGLES]
+
+
+class Sector:
+    STAR_COUNT = 5000
+
+    def __init__(self, x_mod, y_mod):
+        self.x_mod = x_mod
+        self.y_mod = y_mod
+        self.star_list = []
+        for i in range(self.STAR_COUNT):
+            self.star_list.append(self.add_star())
+
+    def add_star(self):
+        x = random.randint(0, 1000) * self.x_mod
+        y = random.randint(0, 1000) * self.y_mod
+        # color = (200, 200, 200)
+        # size = random.uniform(1, 3)
+        return [x, y]
+
+    def on_draw(self):
+        arcade.draw_points(self.star_list, (200, 200, 200), 1)
 
 
 def main():
